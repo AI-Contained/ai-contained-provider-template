@@ -11,17 +11,17 @@ A shell provider for [AI-Contained](https://github.com/AI-Contained) giving your
 ### Local Development
 
 ```bash
-pip install -e ".[dev]" --break-system-packages
+uv sync --extra dev
 ```
 
 ### Production
 
 ```bash
-pip install "ai-contained-provider-shell @ git+https://github.com/AI-Contained/ai-contained-provider-shell.git@main"
+uv pip install "ai-contained-provider-shell @ git+https://github.com/AI-Contained/ai-contained-provider-shell.git@main"
 ```
 
 ## Running Tests
 
 ```bash
-pytest -v
+uv run --extra dev pytest -v
 ```
