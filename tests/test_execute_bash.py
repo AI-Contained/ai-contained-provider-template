@@ -4,13 +4,13 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from ai_contained.core.mcp.testing import Elicitor, WrapCallToolResult
 from assertpy import assert_that  # type: ignore[import-untyped]
 from fastmcp import FastMCP
 from fastmcp.client import Client
 from fastmcp.client.transports import FastMCPTransport
 from mcp.types import TextContent
 
+from ai_contained.core.mcp.testing import Elicitor, WrapCallToolResult
 from ai_contained.provider.shell import register
 
 ExecuteBash = Callable[..., Coroutine[Any, Any, WrapCallToolResult]]
