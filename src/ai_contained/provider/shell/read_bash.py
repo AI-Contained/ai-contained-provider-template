@@ -1,24 +1,34 @@
-"""execute_bash tool — run shell commands."""
+"""read_bash tool — run shell commands."""
 
 import json
 import os
+import shutil
 import subprocess
 
 from fastmcp import Context, FastMCP
 from fastmcp.exceptions import ToolError
 
+_TOOL_TAG = "shell::read"
+
 
 def register(mcp: FastMCP) -> None:
-    """Register the execute_bash tool with the MCP server."""
+    """Register the read_bash tool with the MCP server."""
 
-    @mcp.tool(name="execute_bash")
-    async def execute_bash(  # noqa: D417
+    @mcp.tool(name="read_bash")
+    async def read_bash(  # noqa: D417
         command: str,
         ctx: Context,
         working_dir: str | None = None,
         summary: str | None = None,
     ) -> str:
-        """Execute a bash command and return stdout, stderr, and exit status.
+        """Run a limited bash command and return stdout, stderr, and exit status.
+
+        The workspace is write-protected during execution — the process physically cannot
+        modify workspace files. Writes outside the workspace (e.g. /tmp) are permitted.
+        Use this tool for any command whose purpose is to observe or verify state: tests,
+        linters, build tools that read source files, etc. — even if they incidentally
+        write cache files or temporary artefacts outside the workspace.
+        Use write_command instead only when the program must write into the workspace.
 
         Parameters
         ----------
@@ -55,20 +65,25 @@ def register(mcp: FastMCP) -> None:
         """
         if working_dir:
             rel = os.path.relpath(working_dir, os.getcwd())
-            msg = f"I will run the following command: {command} (in {rel}) (using tool: shell)"
+            msg = f"I will run the following command: {command} (in {rel}) (using tool: {_TOOL_TAG})"
         else:
-            msg = f"I will run the following command: {command} (using tool: shell)"
+            msg = f"I will run the following command: {command} (using tool: {_TOOL_TAG})"
 
         if summary:
             msg += f"\nPurpose: {summary}"
 
-        result = await ctx.elicit(message=msg, response_type=None)
-        if result.action != "accept":
-            raise ToolError("Tool use was cancelled by the user")
+        # elicit (skipped when EXPERIMENTAL_ALLOW_ALL_READS is set)
+        if not os.environ.get("EXPERIMENTAL_APPROVE_ALL_READS"):
+            result = await ctx.elicit(message=msg, response_type=None)
+            if result.action != "accept":
+                raise ToolError("Tool use was cancelled by the user")
 
+        downgrade_exec = (
+            os.environ.get("DOWNGRADE_EXEC") or shutil.which("downgrade_exec") or "/usr/local/bin/downgrade_exec"
+        )
+        downgrade_args = os.environ.get("DOWNGRADE_ARGS", "--check=writable").split()
         proc = subprocess.run(
-            command,
-            shell=True,
+            [downgrade_exec, *downgrade_args, "--", "/bin/sh", "-c", command],
             capture_output=True,
             text=True,
             cwd=working_dir or None,
