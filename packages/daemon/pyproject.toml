@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "ai-contained-trust-server"
+name = "ai-contained-provider-trust-server-daemon"
 version = "0.0.1"
 description = "TrustServer base class for ai-contained secret brokers"
 requires-python = ">=3.12"

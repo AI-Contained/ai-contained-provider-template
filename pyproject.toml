@@ -2,4 +2,4 @@
 members = ["packages/*"]
 
 [tool.uv.sources]
-ai-contained-trust-server = { workspace = true }
+ai-contained-provider-trust-server-daemon = { workspace = true }
