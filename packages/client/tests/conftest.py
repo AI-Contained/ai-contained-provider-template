@@ -1,14 +1,17 @@
 import pytest
+from fastmcp import FastMCP
+from starlette.testclient import TestClient
 
-from ai_contained.trust.client import TrustClient
-from ai_contained.trust.server import TrustServer
-
-
-@pytest.fixture
-def server() -> TrustServer:
-    return TrustServer()
+from ai_contained.trust.server import register
 
 
 @pytest.fixture
-def trust_client(server: TrustServer) -> TrustClient:
-    return TrustClient(server=server)
+def mcp() -> FastMCP:
+    server = FastMCP("test")
+    register(server)
+    return server
+
+
+@pytest.fixture
+def http(mcp: FastMCP) -> TestClient:
+    return TestClient(mcp.http_app())
