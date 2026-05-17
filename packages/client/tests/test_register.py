@@ -7,7 +7,7 @@ from ai_contained.trust.client import TrustClient
 
 @pytest.fixture
 def trust_client(http: TestClient) -> TrustClient:
-    return TrustClient(http)
+    return TrustClient(http)  # TestClient is a subclass of httpx.Client
 
 
 def describe_POST_trust_register() -> None:
