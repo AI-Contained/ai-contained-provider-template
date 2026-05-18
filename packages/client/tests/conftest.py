@@ -15,4 +15,6 @@ def mcp() -> FastMCP:
 
 @pytest.fixture
 def http(mcp: FastMCP) -> TestClient:
-    return TestClient(mcp.http_app())
+    # TestClient defaults client to ("testclient", 50000) which is not a valid IP — override so
+    # request.client.host parses as an IPAddress and one-registration-per-IP enforcement works.
+    return TestClient(mcp.http_app(), client=("127.0.0.1", 50000))

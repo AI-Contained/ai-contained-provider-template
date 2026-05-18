@@ -49,3 +49,15 @@ class TrustClient:
             return False
         response.raise_for_status()
         raise RuntimeError("unreachable")
+
+    def post_raw(self, path: str, payload: dict) -> bytes:
+        # 1. Sign request body with self._signing_key
+        # 2. POST payload with Authorization: Signature keyId="Ed25519",signature="<hex>"
+        # 3. Raise httpx.HTTPStatusError on non-200
+        # 4. Decrypt response body if X-Trust-Secret: encrypt, or http-200 and X-Trust-Secret absent
+        # 5. Return plaintext bytes
+        raise NotImplementedError
+
+    def post(self, path: str, payload: dict) -> dict:
+        # Calls post_raw() and json.loads() the result
+        raise NotImplementedError
