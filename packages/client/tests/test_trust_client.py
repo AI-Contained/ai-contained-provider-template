@@ -46,6 +46,7 @@ def describe_TrustClient() -> None:
 
     def describe_post_raw() -> None:
         expected = {"value": "supersecret"}
+        expected_bytes = json.dumps(expected).encode()
 
         @pytest.fixture
         def trust_client(http: TestClient, monkeypatch: pytest.MonkeyPatch) -> TrustClient:
@@ -59,7 +60,7 @@ def describe_TrustClient() -> None:
 
         def it_returns_decrypted_bytes_by_default(trust_client: TrustClient) -> None:
             result = trust_client.post_raw("/test/secret", {})
-            assert_that(result).is_equal_to(json.dumps(expected).encode())
+            assert_that(result).is_equal_to(expected_bytes)
 
         def it_raises_on_unregistered_client(http: TestClient) -> None:
             client = TrustClient(http)  # not registered
@@ -76,7 +77,7 @@ def describe_TrustClient() -> None:
 
             monkeypatch.setattr(_self, "secret_handler", _handler)
             result = trust_client.post_raw("/test/secret", {})
-            assert_that(result).is_equal_to(json.dumps(expected).encode())
+            assert_that(result).is_equal_to(expected_bytes)
 
         @pytest.mark.parametrize("status_code", [401, 403])
         @pytest.mark.parametrize("x_trust_secret", ["encrypt", "plaintext"])
