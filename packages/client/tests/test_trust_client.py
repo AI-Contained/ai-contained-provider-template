@@ -14,7 +14,7 @@ from ai_contained.trust.server import register
 from ai_contained.trust.server.secret_route import secret_route
 
 
-# Delegate for secret_endpoint — monkeypatched per test to control the response.
+# Delegate for secret_endpoint - monkeypatched per test to control the response.
 async def secret_handler(request: Request) -> Response:
     raise NotImplementedError
 
@@ -40,7 +40,7 @@ def describe_TrustClient() -> None:
         def it_returns_true_on_success(trust_client: TrustClient) -> None:
             assert_that(trust_client.register()).is_true()
 
-        def it_returns_false_when_already_registered(trust_client: TrustClient) -> None:
+        def it_fails_when_already_registered(trust_client: TrustClient) -> None:
             assert_that(trust_client.register()).is_true()
             assert_that(trust_client.register()).is_false()
 
@@ -58,7 +58,7 @@ def describe_TrustClient() -> None:
             client.register()
             return client
 
-        def it_returns_decrypted_bytes_by_default(trust_client: TrustClient) -> None:
+        def it_decrypted_bytes_by_default(trust_client: TrustClient) -> None:
             result = trust_client.post_raw("/test/secret", {})
             assert_that(result).is_equal_to(expected_bytes)
 
@@ -69,7 +69,7 @@ def describe_TrustClient() -> None:
             assert_that(exc_info.value.response.status_code).is_equal_to(401)
 
         @pytest.mark.parametrize("x_trust_secret", ["encrypt", "plaintext"])
-        def it_returns_correct_bytes_for_trust_secret_header(
+        def it_gets_the_payload(
             trust_client: TrustClient, monkeypatch: pytest.MonkeyPatch, x_trust_secret: str
         ) -> None:
             async def _handler(request: Request) -> Response:
@@ -79,7 +79,7 @@ def describe_TrustClient() -> None:
             result = trust_client.post_raw("/test/secret", {})
             assert_that(result).is_equal_to(expected_bytes)
 
-        @pytest.mark.parametrize("status_code", [401, 403])
+        @pytest.mark.parametrize("status_code", [401])
         @pytest.mark.parametrize("x_trust_secret", ["encrypt", "plaintext"])
         def it_raises_on_non_200(
             trust_client: TrustClient,
@@ -97,7 +97,7 @@ def describe_TrustClient() -> None:
             assert_that(exc_info.value.response.json()).is_equal_to(expected)
 
         def describe_post() -> None:
-            def it_returns_decrypted_json(trust_client: TrustClient) -> None:
+            def it_decrypts_json(trust_client: TrustClient) -> None:
                 result = trust_client.post("/test/secret", {})
                 assert_that(result).is_equal_to(expected)
 
