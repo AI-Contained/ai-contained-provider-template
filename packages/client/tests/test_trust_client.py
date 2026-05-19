@@ -46,7 +46,6 @@ def describe_TrustClient() -> None:
 
     def describe_post_raw() -> None:
         expected = {"value": "supersecret"}
-        expected_bytes = json.dumps(expected).encode()
 
         @pytest.fixture
         def trust_client(http: TestClient, monkeypatch: pytest.MonkeyPatch) -> TrustClient:
@@ -58,40 +57,11 @@ def describe_TrustClient() -> None:
             client.register()
             return client
 
-        def it_sets_authorization_header(
-            trust_client: TrustClient, monkeypatch: pytest.MonkeyPatch
-        ) -> None:
-            captured: dict = {}
-
-            async def _handler(request: Request) -> Response:
-                captured["headers"] = dict(request.headers)
-                return JSONResponse(expected)
-
-            monkeypatch.setattr(_self, "secret_handler", _handler)
-            result = trust_client.post_raw("/test/secret", {})
-            assert_that(result).is_equal_to(expected_bytes)
-            assert_that(captured["headers"].get("authorization")).starts_with('Signature keyId="Ed25519",signature="')
-
-        def it_decrypted_bytes_by_default(trust_client: TrustClient) -> None:
-            result = trust_client.post_raw("/test/secret", {})
-            assert_that(result).is_equal_to(expected_bytes)
-
         def it_raises_on_unregistered_client(http: TestClient) -> None:
             client = TrustClient(http)  # not registered
             with pytest.raises(httpx.HTTPStatusError) as exc_info:
                 client.post_raw("/test/secret", {})
             assert_that(exc_info.value.response.status_code).is_equal_to(401)
-
-        @pytest.mark.parametrize("x_trust_secret", ["encrypt", "plaintext"])
-        def it_gets_the_payload(
-            trust_client: TrustClient, monkeypatch: pytest.MonkeyPatch, x_trust_secret: str
-        ) -> None:
-            async def _handler(request: Request) -> Response:
-                return JSONResponse(expected, headers={"X-Trust-Secret": x_trust_secret})
-
-            monkeypatch.setattr(_self, "secret_handler", _handler)
-            result = trust_client.post_raw("/test/secret", {})
-            assert_that(result).is_equal_to(expected_bytes)
 
         @pytest.mark.parametrize("status_code", [401])
         @pytest.mark.parametrize("x_trust_secret", ["encrypt", "plaintext"])
@@ -111,7 +81,14 @@ def describe_TrustClient() -> None:
             assert_that(exc_info.value.response.json()).is_equal_to(expected)
 
         def describe_post() -> None:
-            def it_decrypts_json(trust_client: TrustClient) -> None:
+            @pytest.mark.parametrize("x_trust_secret", ["encrypt", "plaintext"])
+            def it_decrypts_json(
+                trust_client: TrustClient, monkeypatch: pytest.MonkeyPatch, x_trust_secret: str
+            ) -> None:
+                async def _handler(request: Request) -> Response:
+                    return JSONResponse(expected, headers={"X-Trust-Secret": x_trust_secret})
+
+                monkeypatch.setattr(_self, "secret_handler", _handler)
                 result = trust_client.post("/test/secret", {})
                 assert_that(result).is_equal_to(expected)
 
@@ -124,3 +101,17 @@ def describe_TrustClient() -> None:
                 monkeypatch.setattr(_self, "secret_handler", _handler)
                 with pytest.raises(json.JSONDecodeError):
                     trust_client.post("/test/secret", {})
+
+            def it_sets_authorization_header(
+                trust_client: TrustClient, monkeypatch: pytest.MonkeyPatch
+            ) -> None:
+                captured: dict = {}
+
+                async def _handler(request: Request) -> Response:
+                    captured["headers"] = dict(request.headers)
+                    return JSONResponse(expected)
+
+                monkeypatch.setattr(_self, "secret_handler", _handler)
+                result = trust_client.post("/test/secret", {})
+                assert_that(result).is_equal_to(expected)
+                assert_that(captured["headers"].get("authorization")).starts_with('Signature keyId="Ed25519",signature="')
