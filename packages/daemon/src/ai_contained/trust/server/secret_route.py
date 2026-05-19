@@ -36,13 +36,16 @@ def secret_route(
             match = _AUTH_RE.match(request.headers.get("authorization", ""))
             if not match:
                 return JSONResponse({"code": "INVALID_AUTHORIZATION"}, status_code=401)
-            signature = bytes.fromhex(match.group(1))
+            try:
+                signature = bytes.fromhex(match.group(1))
+            except ValueError:
+                return JSONResponse({"code": "INVALID_AUTHORIZATION"}, status_code=401)
 
             # 3. Verify Ed25519 signature over request body — 401 if invalid
             try:
                 body = await request.body()
                 nacl.signing.VerifyKey(bytes.fromhex(client.signing_public_key)).verify(body, signature)
-            except nacl.exceptions.BadSignatureError:
+            except (nacl.exceptions.BadSignatureError, ValueError):
                 return JSONResponse({"code": "INVALID_SIGNATURE"}, status_code=401)
 
             response = await fn(request)

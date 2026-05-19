@@ -115,3 +115,39 @@ def describe_TrustClient() -> None:
                 result = trust_client.post("/test/secret", {})
                 assert_that(result).is_equal_to(expected)
                 assert_that(captured["headers"].get("authorization")).starts_with('Signature keyId="Ed25519",signature="')
+
+    def describe_authorize_header() -> None:
+        # we need to be able to make raw http connections (to fake our malformed requests)
+        @pytest.fixture
+        def registered_http(http: TestClient) -> TestClient:
+            TrustClient(http).register()
+            return http
+
+        def it_returns_401_when_authorization_header_is_missing(registered_http: TestClient) -> None:
+            response = registered_http.post("/test/secret", json={})
+            assert_that(response.status_code).is_equal_to(401)
+            assert_that(response.json()).is_equal_to({"code": "INVALID_AUTHORIZATION"})
+
+        def it_returns_401_when_signature_is_invalid(registered_http: TestClient) -> None:
+            response = registered_http.post(
+                "/test/secret",
+                content=b"{}",
+                headers={
+                    "content-type": "application/json",
+                    "authorization": f'Signature keyId="Ed25519",signature="{"ab" * 32}"',
+                },
+            )
+            assert_that(response.status_code).is_equal_to(401)
+            assert_that(response.json()).is_equal_to({"code": "INVALID_SIGNATURE"})
+
+        def it_returns_401_when_signature_hex_is_odd_length(registered_http: TestClient) -> None:
+            response = registered_http.post(
+                "/test/secret",
+                content=b"{}",
+                headers={
+                    "content-type": "application/json",
+                    "authorization": 'Signature keyId="Ed25519",signature="abc"',
+                },
+            )
+            assert_that(response.status_code).is_equal_to(401)
+            assert_that(response.json()).is_equal_to({"code": "INVALID_AUTHORIZATION"})
