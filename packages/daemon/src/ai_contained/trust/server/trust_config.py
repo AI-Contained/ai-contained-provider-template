@@ -13,7 +13,9 @@ class RoleSet:
 
     def permits(self, role: str) -> bool:
         """Return True if role is allowed and not denied."""
-        raise NotImplementedError
+        if role in self.denied:
+            return False
+        return "*" in self.allowed or role in self.allowed
 
 
 class TrustConfig:
