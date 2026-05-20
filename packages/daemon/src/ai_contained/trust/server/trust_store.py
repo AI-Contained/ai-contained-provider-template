@@ -9,19 +9,22 @@ Ed25519 signature against the stored signing key.
 from dataclasses import dataclass
 from ipaddress import IPv4Address, IPv6Address
 
+from ai_contained.trust.server.trust_config import RoleSet
+
 # Union type for both IPv4 and IPv6 client addresses.
 IPAddress = IPv4Address | IPv6Address
 
 
 @dataclass(frozen=True)
 class RegisteredClient:
-    """Public keys for a registered client.
+    """Public keys and roles for a registered client.
 
     frozen=True: keys are immutable after registration — a client cannot
     re-register from the same IP with different keys.
     """
 
-    signing_public_key: str   # Ed25519 verify key — used to authenticate each request
+    roles: RoleSet              # permitted roles for this client
+    signing_public_key: str     # Ed25519 verify key — used to authenticate each request
     encryption_public_key: str  # Curve25519 public key — used to encrypt responses
 
 
