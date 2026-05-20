@@ -19,3 +19,24 @@ def describe_RoleSet() -> None:
             result = RoleSet(frozenset({"*"}), frozenset({"shell"}))
             assert_that(result.permits("shell")).is_false()
             assert_that(result.permits("aws")).is_true()
+
+
+def describe_TrustConfig() -> None:
+    def describe_parser() -> None:
+        def it_returns_empty_for_empty_string() -> None:
+            assert_that(TrustConfig._parse("")).is_empty()
+
+        def it_returns_empty_for_none_value() -> None:
+            assert_that(TrustConfig._parse("none")).is_empty()
+
+        def it_grants_wildcard_role_for_plain_hostname() -> None:
+            result = TrustConfig._parse("client-hostname")
+            assert_that(result).is_equal_to({"client-hostname": RoleSet(frozenset({"*"}), frozenset())})
+
+        def it_maps_role_to_hostname() -> None:
+            result = TrustConfig._parse("shell=client-hostname")
+            assert_that(result).is_equal_to({"client-hostname": RoleSet(frozenset({"shell"}), frozenset())})
+
+        def it_merges_multiple_roles_for_same_hostname() -> None:
+            result = TrustConfig._parse("shell=client-hostname,aws=client-hostname")
+            assert_that(result).is_equal_to({"client-hostname": RoleSet(frozenset({"shell", "aws"}), frozenset())})
