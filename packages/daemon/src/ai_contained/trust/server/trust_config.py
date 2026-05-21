@@ -43,11 +43,16 @@ class TrustConfig:
                 continue
             if "=" in token:
                 role, hostname = token.split("=", 1)
+                denied = hostname.startswith("!")
+                hostname = hostname.lstrip("!")
             else:
-                role, hostname = "*", token
+                role, hostname, denied = "*", token, False
             if hostname not in result:
                 result[hostname] = RoleSet(set(), set())
-            result[hostname].allowed.add(role)
+            if denied:
+                result[hostname].denied.add(role)
+            else:
+                result[hostname].allowed.add(role)
         return result
 
     def __init__(self, trust_clients: str) -> None:
