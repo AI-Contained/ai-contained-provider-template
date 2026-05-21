@@ -41,3 +41,30 @@ def describe_TrustConfig() -> None:
         def it_denies_a_role_for_hostname_using_bang_prefix() -> None:
             result = TrustConfig._parse("client-hostname,aws=!client-hostname")
             assert_that(result).is_equal_to({"client-hostname": RoleSet({"*"}, {"aws"})})
+
+    def describe_is_hostname_permitted() -> None:
+        def it_allows_a_known_hostname() -> None:
+            config = TrustConfig("client-hostname")
+            assert_that(config.is_hostname_permitted("client-hostname")).is_true()
+
+        def it_denies_an_unknown_hostname() -> None:
+            config = TrustConfig("client-hostname")
+            assert_that(config.is_hostname_permitted("other-hostname")).is_false()
+
+    def describe_is_role_permitted() -> None:
+        def it_allows_an_explicitly_listed_role() -> None:
+            config = TrustConfig("shell=client-hostname")
+            assert_that(config.is_hostname_permitted("client-hostname")).is_true()
+            assert_that(config.is_role_permitted("client-hostname", "shell")).is_true()
+
+        def it_allows_listed_roles_and_denies_unlisted_ones() -> None:
+            config = TrustConfig("shell=client-hostname")
+            assert_that(config.is_hostname_permitted("client-hostname")).is_true()
+            assert_that(config.is_role_permitted("client-hostname", "shell")).is_true()
+            assert_that(config.is_role_permitted("client-hostname", "aws")).is_false()
+
+        def it_respects_the_bang_deny_list() -> None:
+            config = TrustConfig("client-hostname,aws=!client-hostname")
+            assert_that(config.is_hostname_permitted("client-hostname")).is_true()
+            assert_that(config.is_role_permitted("client-hostname", "shell")).is_true()
+            assert_that(config.is_role_permitted("client-hostname", "aws")).is_false()
