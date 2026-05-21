@@ -11,7 +11,6 @@ from starlette.testclient import TestClient
 import test_trust_client as _self
 from ai_contained.trust import server as trust_server
 from ai_contained.trust.client import TrustClient
-from ai_contained.trust.server.secret_route import secret_route
 
 
 # Delegate for secret_endpoint - monkeypatched per test to control the response.
@@ -24,7 +23,7 @@ def mcp() -> FastMCP:
     server = FastMCP("test")
     trust_server.register(server)
 
-    @secret_route(server, "/test/secret", methods=["POST"], role="test")
+    @trust_server.secret_route(server, "/test/secret", methods=["POST"], role="test")
     async def secret_endpoint(request: Request) -> Response:
         return await secret_handler(request)
 

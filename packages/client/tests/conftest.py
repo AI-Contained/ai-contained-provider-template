@@ -3,7 +3,6 @@ from fastmcp import FastMCP
 from starlette.testclient import TestClient
 
 from ai_contained.trust import server as trust_server
-from ai_contained.trust.server import register
 from ai_contained.trust.server.trust_store import get_trust_store
 
 
@@ -16,7 +15,7 @@ def reset_trust_store() -> None:
 @pytest.fixture
 def mcp() -> FastMCP:
     server = FastMCP("test")
-    register(server)
+    trust_server.register(server)
     return server
 
 
