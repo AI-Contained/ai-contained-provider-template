@@ -2,16 +2,19 @@ import pytest
 from assertpy import assert_that
 from fastmcp import FastMCP
 from starlette.requests import Request
-from starlette.responses import JSONResponse, Response
+from starlette.responses import Response
 from starlette.testclient import TestClient
 
-import test_trust_connection as _self
 from ai_contained.trust import server as trust_server
 from ai_contained.trust.client.trust_connection import TrustConnection
 
 
-async def secret_handler(request: Request) -> Response:
+async def _raise_not_implemented(request: Request) -> Response:
     raise NotImplementedError
+
+
+class SecretEndpointHandler:
+    handle = _raise_not_implemented
 
 
 @pytest.fixture
@@ -21,7 +24,7 @@ def mcp() -> FastMCP:
 
     @trust_server.secret_route(server, role="test")
     async def secret_endpoint(request: Request) -> Response:
-        return await secret_handler(request)
+        return await SecretEndpointHandler.handle(request)
 
     return server
 
@@ -52,7 +55,7 @@ def describe_TrustConnection() -> None:
             async def _handler(request: Request) -> Response:
                 return Response(content=expected)
 
-            monkeypatch.setattr(_self, "secret_handler", _handler)
+            monkeypatch.setattr(SecretEndpointHandler, "handle", _handler)
             assert_that(connection.post_raw("/test/secret", {})).is_equal_to(expected)
 
     def describe_authorize_header() -> None:

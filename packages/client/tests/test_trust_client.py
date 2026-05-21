@@ -8,15 +8,17 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.testclient import TestClient
 
-import test_trust_client as _self
 from ai_contained.trust import server as trust_server
 from ai_contained.trust.client import TrustClient
 from ai_contained.trust.client.trust_connection import TrustConnection
 
 
-# Delegate for secret_endpoint - monkeypatched per test to control the response.
-async def secret_handler(request: Request) -> Response:
+async def _raise_not_implemented(request: Request) -> Response:
     raise NotImplementedError
+
+
+class SecretEndpointHandler:
+    handle = _raise_not_implemented
 
 
 @pytest.fixture
@@ -26,7 +28,7 @@ def mcp() -> FastMCP:
 
     @trust_server.secret_route(server, role="test")
     async def secret_endpoint(request: Request) -> Response:
-        return await secret_handler(request)
+        return await SecretEndpointHandler.handle(request)
 
     return server
 
@@ -39,7 +41,7 @@ def describe_TrustClient() -> None:
         async def _handler(request: Request) -> Response:
             return JSONResponse(expected)
 
-        monkeypatch.setattr(_self, "secret_handler", _handler)
+        monkeypatch.setattr(SecretEndpointHandler, "handle", _handler)
         conn = TrustConnection(http)
         conn.register()
         return TrustClient(_connection=conn, _path="/test/secret")
@@ -65,7 +67,7 @@ def describe_TrustClient() -> None:
             async def _handler(request: Request) -> Response:
                 return JSONResponse(expected, status_code=status_code, headers={"X-Trust-Secret": x_trust_secret})
 
-            monkeypatch.setattr(_self, "secret_handler", _handler)
+            monkeypatch.setattr(SecretEndpointHandler, "handle", _handler)
             with pytest.raises(httpx.HTTPStatusError) as exc_info:
                 trust_client.post_raw({})
             assert_that(exc_info.value.response.status_code).is_equal_to(status_code)
@@ -81,7 +83,7 @@ def describe_TrustClient() -> None:
                 async def _handler(request: Request) -> Response:
                     return JSONResponse(expected, headers={"X-Trust-Secret": x_trust_secret})
 
-                monkeypatch.setattr(_self, "secret_handler", _handler)
+                monkeypatch.setattr(SecretEndpointHandler, "handle", _handler)
                 assert_that(trust_client.post({})).is_equal_to(expected)
 
             def it_raises_on_non_json_response(
@@ -90,7 +92,7 @@ def describe_TrustClient() -> None:
                 async def _handler(request: Request) -> Response:
                     return Response(content=b"not json", headers={"X-Trust-Secret": "plaintext"})
 
-                monkeypatch.setattr(_self, "secret_handler", _handler)
+                monkeypatch.setattr(SecretEndpointHandler, "handle", _handler)
                 with pytest.raises(json.JSONDecodeError):
                     trust_client.post({})
 
@@ -104,7 +106,7 @@ def describe_TrustClient() -> None:
                     captured["headers"] = dict(request.headers)
                     return JSONResponse(expected)
 
-                monkeypatch.setattr(_self, "secret_handler", _handler)
+                monkeypatch.setattr(SecretEndpointHandler, "handle", _handler)
                 assert_that(trust_client.post({})).is_equal_to(expected)
                 assert_that(captured["headers"].get("authorization")).starts_with('Signature keyId="Ed25519",signature="')
 
@@ -140,7 +142,7 @@ def describe_TrustClient() -> None:
             async def _handler(request: Request) -> Response:
                 return JSONResponse(expected)
 
-            monkeypatch.setattr(_self, "secret_handler", _handler)
+            monkeypatch.setattr(SecretEndpointHandler, "handle", _handler)
             conn = TrustConnection(http)
             conn.register()
             client = TrustClient(_connection=conn, _path="/test/secret")
