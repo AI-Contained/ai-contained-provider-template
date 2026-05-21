@@ -90,5 +90,3 @@ class TrustConnection:
         # 5. Return plaintext bytes
         return content
 
-    def post(self, path: str, payload: dict) -> dict:
-        return json.loads(self.post_raw(path, payload))

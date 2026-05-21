@@ -5,6 +5,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.testclient import TestClient
 
+import test_trust_connection as _self
 from ai_contained.trust import server as trust_server
 from ai_contained.trust.client.trust_connection import TrustConnection
 
@@ -37,6 +38,22 @@ def describe_TrustConnection() -> None:
         def it_fails_when_already_registered(connection: TrustConnection) -> None:
             assert_that(connection.register()).is_true()
             assert_that(connection.register()).is_false()
+
+    def describe_post_raw() -> None:
+        @pytest.fixture
+        def connection(http: TestClient) -> TrustConnection:
+            conn = TrustConnection(http)
+            conn.register()
+            return conn
+
+        def it_decrypts_response(connection: TrustConnection, monkeypatch: pytest.MonkeyPatch) -> None:
+            expected = b"hello"
+
+            async def _handler(request: Request) -> Response:
+                return Response(content=expected)
+
+            monkeypatch.setattr(_self, "secret_handler", _handler)
+            assert_that(connection.post_raw("/test/secret", {})).is_equal_to(expected)
 
     def describe_authorize_header() -> None:
         # we need to be able to make raw http connections (to fake our malformed requests)
