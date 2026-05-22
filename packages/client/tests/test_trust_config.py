@@ -1,7 +1,6 @@
 import httpx
 import pytest
 from assertpy import assert_that
-from starlette.testclient import TestClient
 
 from ai_contained.trust import client as trust_client
 from ai_contained.trust.client.trust_config import reset_trust_config
@@ -60,60 +59,65 @@ def describe_TrustConfig() -> None:
         def it_is_uninitialized_by_default() -> None:
             assert_that(trust_client.get_trust_config()).is_none()
 
-        def it_allows_known_role_and_denies_unknown(http: TestClient) -> None:
-            trust_client.init_trust_config("aws=http://127.0.0.1:8080", lambda url: http)
+        async def it_allows_known_role_and_denies_unknown(http: httpx.AsyncClient) -> None:
+            await trust_client.init_trust_config("aws=http://127.0.0.1:8080", lambda url: http)
             assert_that(trust_client.get_trust_config().get_client("github")).is_none()
             assert_that(trust_client.get_trust_config().get_client("aws")).is_instance_of(trust_client.TrustClient)
 
-        def it_allows_any_role_via_wildcard(http: TestClient) -> None:
-            trust_client.init_trust_config("http://127.0.0.1:8080", lambda url: http)
+        async def it_allows_any_role_via_wildcard(http: httpx.AsyncClient) -> None:
+            await trust_client.init_trust_config("http://127.0.0.1:8080", lambda url: http)
             assert_that(trust_client.get_trust_config().get_client("github")).is_instance_of(trust_client.TrustClient)
             assert_that(trust_client.get_trust_config().get_client("aws")).is_instance_of(trust_client.TrustClient)
 
-        def it_denies_role_even_with_wildcard(http: TestClient) -> None:
-            trust_client.init_trust_config("http://127.0.0.1:8080,aws=", lambda url: http)
+        async def it_denies_role_even_with_wildcard(http: httpx.AsyncClient) -> None:
+            await trust_client.init_trust_config("http://127.0.0.1:8080,aws=", lambda url: http)
             assert_that(trust_client.get_trust_config().get_client("github")).is_instance_of(trust_client.TrustClient)
             assert_that(trust_client.get_trust_config().get_client("aws")).is_none()
 
-        def it_shares_connection_across_roles_on_same_host(http: TestClient) -> None:
-            trust_client.init_trust_config("aws=http://127.0.0.1:8080,shell=http://127.0.0.1:8080", lambda url: http)
+        async def it_shares_connection_across_roles_on_same_host(http: httpx.AsyncClient) -> None:
+            await trust_client.init_trust_config("aws=http://127.0.0.1:8080,shell=http://127.0.0.1:8080", lambda url: http)
             config = trust_client.get_trust_config()
             assert_that(config.get_client("aws")._connection).is_same_as(config.get_client("shell")._connection)
 
 def describe_register_clients() -> None:
     from ai_contained.trust.client.trust_config import _register_clients
 
-    def it_shares_connection_for_same_host(http: TestClient) -> None:
+    async def it_shares_connection_for_same_host(http: httpx.AsyncClient) -> None:
         parsed = {"aws": "http://127.0.0.1:8080", "shell": "http://127.0.0.1:8080"}
-        result = _register_clients(parsed, lambda url: http)
+        result = await _register_clients(parsed, lambda url: http)
         assert_that(result["aws"]._connection).is_same_as(result["shell"]._connection)
 
-    def it_retries_on_network_error(http: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    async def it_retries_on_network_error(http: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
         ncalls = 0
         original_register = TrustConnection.register
 
-        def flaky_register(self: TrustConnection) -> bool:
+        async def flaky_register(self: TrustConnection) -> bool:
             nonlocal ncalls
             ncalls += 1
             if ncalls <= 2:
                 raise httpx.ConnectError("connection refused")
-            return original_register(self)
+            return await original_register(self)
+
+        async def no_sleep(_: float) -> None:
+            pass
 
         monkeypatch.setattr(TrustConnection, "register", flaky_register)
-        monkeypatch.setattr("ai_contained.trust.client.trust_config._sleep", lambda _: None)
+        monkeypatch.setattr("ai_contained.trust.client.trust_config._sleep", no_sleep)
 
         parsed = {"aws": "http://127.0.0.1:8080"}
-        result = _register_clients(parsed, lambda url: http, max_retries=3)
+        result = await _register_clients(parsed, lambda url: http, max_retries=3)
         assert_that(result["aws"]).is_instance_of(trust_client.TrustClient)
 
-    def it_raises_after_max_retries(http: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-        def always_fail(self: TrustConnection) -> bool:
+    async def it_raises_after_max_retries(http: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
+        async def always_fail(self: TrustConnection) -> bool:
             raise httpx.ConnectError("connection refused")
 
+        async def no_sleep(_: float) -> None:
+            pass
+
         monkeypatch.setattr(TrustConnection, "register", always_fail)
-        monkeypatch.setattr("ai_contained.trust.client.trust_config._sleep", lambda _: None)
+        monkeypatch.setattr("ai_contained.trust.client.trust_config._sleep", no_sleep)
 
         parsed = {"aws": "http://127.0.0.1:8080"}
-        assert_that(_register_clients).raises(httpx.ConnectError).when_called_with(
-            parsed, lambda url: http, max_retries=2
-        )
+        with pytest.raises(httpx.ConnectError):
+            await _register_clients(parsed, lambda url: http, max_retries=2)

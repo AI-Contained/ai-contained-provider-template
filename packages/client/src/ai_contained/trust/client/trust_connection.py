@@ -17,17 +17,12 @@ class TrustConnection:
     - Curve25519 PrivateKey: decrypts incoming responses (confidentiality)
     """
 
-    def __init__(self, target: httpx.URL | httpx.Client) -> None:
-        # In production pass httpx.URL — client is created internally.
-        # In tests pass a TestClient (starlette.testclient.TestClient is a subclass of httpx.Client).
-        if isinstance(target, httpx.URL):
-            self._http = httpx.Client(base_url=str(target))
-        else:
-            self._http = target
+    def __init__(self, http: httpx.AsyncClient) -> None:
+        self._http = http
         self._signing_key = nacl.signing.SigningKey.generate()
         self._private_key = nacl.public.PrivateKey.generate()
 
-    def register(self) -> bool:
+    async def register(self) -> bool:
         """POST public keys to /trust/register.
 
         Returns:
@@ -38,7 +33,7 @@ class TrustConnection:
             httpx.HTTPStatusError: unexpected response — indicates misconfiguration.
                                    Includes server URL and response body for debugging.
         """
-        response = self._http.post(
+        response = await self._http.post(
             "/trust/register",
             json={
                 "signing_public_key": self._signing_key.verify_key.encode().hex(),
@@ -52,13 +47,13 @@ class TrustConnection:
         response.raise_for_status()
         raise RuntimeError("unreachable")
 
-    def post_raw(self, path: str, payload: dict) -> bytes:
+    async def post_raw(self, path: str, payload: dict) -> bytes:
         body = json.dumps(payload).encode()
         # 1. Sign request body with self._signing_key
         signature = self._signing_key.sign(body).signature
 
         # 2. POST payload with Authorization: Signature keyId="Ed25519",signature="<hex>"
-        response = self._http.post(
+        response = await self._http.post(
             path,
             content=body,
             headers={

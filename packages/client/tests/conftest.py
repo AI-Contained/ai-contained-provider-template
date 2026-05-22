@@ -1,8 +1,9 @@
+from collections.abc import AsyncGenerator
+
+import httpx
 import pytest
 from fastmcp import FastMCP
-from starlette.testclient import TestClient
 
-from ai_contained.trust import client as trust_client
 from ai_contained.trust import server as trust_server
 from ai_contained.trust.server.trust_store import get_trust_store
 
@@ -13,7 +14,6 @@ def reset_trust_store() -> None:
     trust_server.get_trust_config().reset("127.0.0.1")  # allow test client IP with wildcard roles
 
 
-
 @pytest.fixture
 def mcp() -> FastMCP:
     server = FastMCP("test")
@@ -22,7 +22,9 @@ def mcp() -> FastMCP:
 
 
 @pytest.fixture
-def http(mcp: FastMCP) -> TestClient:
-    # TestClient defaults client to ("testclient", 50000) which is not a valid IP — override so
-    # request.client.host parses as an IPAddress and one-registration-per-IP enforcement works.
-    return TestClient(mcp.http_app(), client=("127.0.0.1", 50000))
+async def http(mcp: FastMCP) -> AsyncGenerator[httpx.AsyncClient, None]:
+    # ASGITransport routes directly to the ASGI app — base_url host is ignored.
+    # client overrides the remote IP so one-registration-per-IP enforcement works.
+    transport = httpx.ASGITransport(app=mcp.http_app(), client=("127.0.0.1", 50000))
+    async with httpx.AsyncClient(transport=transport, base_url="http://ignored") as client:
+        yield client

@@ -13,8 +13,8 @@ class TrustClient:
     _connection: TrustConnection
     _path: str
 
-    def post_raw(self, payload: dict) -> bytes:
-        return self._connection.post_raw(self._path, payload)
+    async def post_raw(self, payload: dict) -> bytes:
+        return await self._connection.post_raw(self._path, payload)
 
-    def post(self, payload: dict) -> dict:
-        return json.loads(self.post_raw(payload))
+    async def post(self, payload: dict) -> dict:
+        return json.loads(await self.post_raw(payload))

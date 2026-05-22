@@ -1,9 +1,9 @@
+import httpx
 import pytest
 from assertpy import assert_that
 from fastmcp import FastMCP
 from starlette.requests import Request
 from starlette.responses import Response
-from starlette.testclient import TestClient
 
 from ai_contained.trust import server as trust_server
 from ai_contained.trust.client.trust_connection import TrustConnection
@@ -31,47 +31,46 @@ def mcp() -> FastMCP:
 
 def describe_TrustConnection() -> None:
     @pytest.fixture
-    def connection(http: TestClient) -> TrustConnection:
+    def connection(http: httpx.AsyncClient) -> TrustConnection:
         return TrustConnection(http)
 
     def describe_register() -> None:
-        def it_returns_true_on_success(connection: TrustConnection) -> None:
-            assert_that(connection.register()).is_true()
+        async def it_returns_true_on_success(connection: TrustConnection) -> None:
+            assert_that(await connection.register()).is_true()
 
-        def it_fails_when_already_registered(connection: TrustConnection) -> None:
-            assert_that(connection.register()).is_true()
-            assert_that(connection.register()).is_false()
+        async def it_fails_when_already_registered(connection: TrustConnection) -> None:
+            assert_that(await connection.register()).is_true()
+            assert_that(await connection.register()).is_false()
 
     def describe_post_raw() -> None:
         @pytest.fixture
-        def connection(http: TestClient) -> TrustConnection:
+        async def connection(http: httpx.AsyncClient) -> TrustConnection:
             conn = TrustConnection(http)
-            conn.register()
+            await conn.register()
             return conn
 
-        def it_decrypts_response(connection: TrustConnection, monkeypatch: pytest.MonkeyPatch) -> None:
+        async def it_decrypts_response(connection: TrustConnection, monkeypatch: pytest.MonkeyPatch) -> None:
             expected = b"hello"
 
             async def _handler(request: Request) -> Response:
                 return Response(content=expected)
 
             monkeypatch.setattr(SecretEndpointHandler, "handle", _handler)
-            assert_that(connection.post_raw("/test/secret", {})).is_equal_to(expected)
+            assert_that(await connection.post_raw("/test/secret", {})).is_equal_to(expected)
 
     def describe_authorize_header() -> None:
-        # we need to be able to make raw http connections (to fake our malformed requests)
         @pytest.fixture
-        def registered_http(http: TestClient) -> TestClient:
-            TrustConnection(http).register()
+        async def registered_http(http: httpx.AsyncClient) -> httpx.AsyncClient:
+            await TrustConnection(http).register()
             return http
 
-        def it_returns_401_when_authorization_header_is_missing(registered_http: TestClient) -> None:
-            response = registered_http.post("/test/secret", json={})
+        async def it_returns_401_when_authorization_header_is_missing(registered_http: httpx.AsyncClient) -> None:
+            response = await registered_http.post("/test/secret", json={})
             assert_that(response.status_code).is_equal_to(401)
             assert_that(response.json()).is_equal_to({"code": "INVALID_AUTHORIZATION"})
 
-        def it_returns_401_when_signature_is_invalid(registered_http: TestClient) -> None:
-            response = registered_http.post(
+        async def it_returns_401_when_signature_is_invalid(registered_http: httpx.AsyncClient) -> None:
+            response = await registered_http.post(
                 "/test/secret",
                 content=b"{}",
                 headers={
@@ -82,8 +81,8 @@ def describe_TrustConnection() -> None:
             assert_that(response.status_code).is_equal_to(401)
             assert_that(response.json()).is_equal_to({"code": "INVALID_SIGNATURE"})
 
-        def it_returns_401_when_signature_hex_is_odd_length(registered_http: TestClient) -> None:
-            response = registered_http.post(
+        async def it_returns_401_when_signature_hex_is_odd_length(registered_http: httpx.AsyncClient) -> None:
+            response = await registered_http.post(
                 "/test/secret",
                 content=b"{}",
                 headers={

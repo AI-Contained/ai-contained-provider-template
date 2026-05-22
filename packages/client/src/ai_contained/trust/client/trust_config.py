@@ -1,23 +1,23 @@
 """TrustConfig — builds and holds TrustClient instances parsed from TRUST_SERVERS."""
 
+import asyncio
 import logging
-import time
 from collections.abc import Callable
 
 import httpx
 from fastmcp.utilities.logging import get_logger
 
-_sleep = time.sleep  # exposed for monkeypatching in tests
+_sleep = asyncio.sleep  # exposed for monkeypatching in tests
 _log: logging.Logger = get_logger("trust.client")
 
 from ai_contained.trust.client.trust_client import TrustClient
 from ai_contained.trust.client.trust_connection import TrustConnection
 
-HttpClientFactory = Callable[[httpx.URL], httpx.Client]
+HttpClientFactory = Callable[[httpx.URL], httpx.AsyncClient]
 
 
-def _default_http_client_factory(url: httpx.URL) -> httpx.Client:
-    return httpx.Client(base_url=url)
+def _default_http_client_factory(url: httpx.URL) -> httpx.AsyncClient:
+    return httpx.AsyncClient(base_url=url)
 
 
 class DuplicateSourceError(ValueError):
@@ -26,7 +26,7 @@ class DuplicateSourceError(ValueError):
         super().__init__(f"duplicate {display} in TRUST_SERVERS")
 
 
-def _register_clients(
+async def _register_clients(
     parsed: dict[str, str | None],
     factory: HttpClientFactory,
     max_retries: int = 5,
@@ -44,11 +44,13 @@ def _register_clients(
         key = f"{parsed_url.host}:{parsed_url.port}"
 
         if key not in by_url:
+            # TODO:  Create an async request to allow the key-exchange to happen in parallel (nice-to-have)
+            #        WARNING:  Watch out for issues where the same host is contacted twice (it will be rejected by the server)
             _log.info("connecting to %s", key)
             conn = TrustConnection(factory(parsed_url))
             for attempt in range(1, max_retries + 1):
                 try:
-                    conn.register()
+                    await conn.register()
                     _log.info("registered with %s", key)
                     break
                 except httpx.ConnectError as e:
@@ -57,7 +59,7 @@ def _register_clients(
                         raise
                     delay = 2 ** (attempt - 1)
                     _log.warning("attempt %d/%d failed for %s, retrying in %ds", attempt, max_retries, key, delay)
-                    _sleep(delay)
+                    await _sleep(delay)
             by_url[key] = conn
 
         path = parsed_url.path or f"/{role}/secret"
@@ -99,8 +101,8 @@ class TrustConfig:
             result[role] = url
         return result
 
-    def __init__(self, trust_servers: str, factory: HttpClientFactory) -> None:
-        self._clients = _register_clients(self._parse(trust_servers), factory)
+    def __init__(self, clients: dict[str, TrustClient | None]) -> None:
+        self._clients = clients
 
     def get_client(self, role: str) -> TrustClient | None:
         """Return the TrustClient for a role — falls back to wildcard '*' if role not explicitly configured."""
@@ -115,12 +117,11 @@ def get_trust_config() -> TrustConfig | None:
     return _instance
 
 
-def init_trust_config(raw: str, factory: HttpClientFactory = _default_http_client_factory) -> TrustConfig:
+async def init_trust_config(raw: str, factory: HttpClientFactory = _default_http_client_factory) -> TrustConfig:
     """Initialize (or reinitialize) the process-wide TrustConfig singleton."""
     global _instance
-    if _instance is not None:
-        _instance = None
-    _instance = TrustConfig(raw, factory)
+    _instance = None
+    _instance = TrustConfig(await _register_clients(TrustConfig._parse(raw), factory))
     return _instance
 
 

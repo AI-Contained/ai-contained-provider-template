@@ -3,3 +3,6 @@ members = ["packages/daemon", "packages/client"]
 
 [tool.uv.sources]
 ai-contained-provider-trust-server-daemon = { workspace = true }
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
