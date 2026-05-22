@@ -1,12 +1,17 @@
 """TrustConfig — builds and holds TrustClient instances parsed from TRUST_SERVERS."""
 
-import os
 from collections.abc import Callable
 
 import httpx
 
 from ai_contained.trust.client.trust_client import TrustClient
 from ai_contained.trust.client.trust_connection import TrustConnection
+
+HttpClientFactory = Callable[[httpx.URL], httpx.Client]
+
+
+def _default_http_client_factory(url: httpx.URL) -> httpx.Client:
+    return httpx.Client(base_url=url)
 
 
 class DuplicateSourceError(ValueError):
@@ -19,7 +24,6 @@ class TrustConfig:
     """Parsed registry from TRUST_SERVERS — maps role to TrustClient.
 
     Populated at startup; static for the lifetime of the process.
-    Call reset() in tests to reconfigure without reinstantiating.
     """
 
     @staticmethod
@@ -49,12 +53,8 @@ class TrustConfig:
             result[role] = url
         return result
 
-    def __init__(self, trust_servers: str, factory: Callable[[httpx.URL], httpx.Client]) -> None:
+    def __init__(self, trust_servers: str, factory: HttpClientFactory) -> None:
         self._clients: dict[str, TrustClient | None] = {}
-        raise NotImplementedError
-
-    def reset(self, trust_servers: str = "") -> None:
-        """Reconfigure — intended for use in tests only."""
         raise NotImplementedError
 
     def get_client(self, role: str) -> TrustClient | None:
@@ -70,11 +70,10 @@ def get_trust_config() -> TrustConfig | None:
     return _instance
 
 
-def init_trust_config(raw: str, factory: Callable[[httpx.URL], httpx.Client] = lambda url: httpx.Client(base_url=str(url))) -> TrustConfig | None:
+def init_trust_config(raw: str, factory: HttpClientFactory = _default_http_client_factory) -> TrustConfig:
     """Initialize (or reinitialize) the process-wide TrustConfig singleton."""
     global _instance
-    if not raw:
+    if _instance is not None:
         _instance = None
-        return None
     _instance = TrustConfig(raw, factory)
     return _instance
