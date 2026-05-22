@@ -1,8 +1,11 @@
 """TrustConfig — builds and holds TrustClient instances parsed from TRUST_SERVERS."""
 
+import time
 from collections.abc import Callable
 
 import httpx
+
+_sleep = time.sleep  # exposed for monkeypatching in tests
 
 from ai_contained.trust.client.trust_client import TrustClient
 from ai_contained.trust.client.trust_connection import TrustConnection
@@ -18,6 +21,14 @@ class DuplicateSourceError(ValueError):
     def __init__(self, role: str) -> None:
         display = "wildcard" if role == "*" else f"role {role!r}"
         super().__init__(f"duplicate {display} in TRUST_SERVERS")
+
+
+def _register_clients(
+    parsed: dict[str, str | None],
+    factory: HttpClientFactory,
+    max_retries: int = 5,
+) -> dict[str, TrustClient | None]:
+    raise NotImplementedError
 
 
 class TrustConfig:

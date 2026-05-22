@@ -74,3 +74,41 @@ def describe_TrustConfig() -> None:
             trust_client.init_trust_config("aws=http://127.0.0.1:8080,shell=http://127.0.0.1:8080", lambda url: http)
             config = trust_client.get_trust_config()
             assert_that(config.get_client("aws")._connection).is_same_as(config.get_client("shell")._connection)
+
+def describe_register_clients() -> None:
+    from ai_contained.trust.client.trust_config import _register_clients
+
+    def it_shares_connection_for_same_host(http: TestClient) -> None:
+        parsed = {"aws": "http://127.0.0.1:8080", "shell": "http://127.0.0.1:8080"}
+        result = _register_clients(parsed, lambda url: http)
+        assert_that(result["aws"]._connection).is_same_as(result["shell"]._connection)
+
+    def it_retries_on_network_error(http: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+        ncalls = 0
+        original_register = TrustConnection.register
+
+        def flaky_register(self: TrustConnection) -> bool:
+            nonlocal ncalls
+            ncalls += 1
+            if ncalls <= 2:
+                raise httpx.ConnectError("connection refused")
+            return original_register(self)
+
+        monkeypatch.setattr(TrustConnection, "register", flaky_register)
+        monkeypatch.setattr("ai_contained.trust.client.trust_config._sleep", lambda _: None)
+
+        parsed = {"aws": "http://127.0.0.1:8080"}
+        result = _register_clients(parsed, lambda url: http, max_retries=3)
+        assert_that(result["aws"]).is_instance_of(trust_client.TrustClient)
+
+    def it_raises_after_max_retries(http: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+        def always_fail(self: TrustConnection) -> bool:
+            raise httpx.ConnectError("connection refused")
+
+        monkeypatch.setattr(TrustConnection, "register", always_fail)
+        monkeypatch.setattr("ai_contained.trust.client.trust_config._sleep", lambda _: None)
+
+        parsed = {"aws": "http://127.0.0.1:8080"}
+        assert_that(_register_clients).raises(httpx.ConnectError).when_called_with(
+            parsed, lambda url: http, max_retries=2
+        )
