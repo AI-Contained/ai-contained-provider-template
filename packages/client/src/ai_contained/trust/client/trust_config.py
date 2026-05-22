@@ -55,7 +55,7 @@ class TrustConfig:
 
     def __init__(self, trust_servers: str, factory: HttpClientFactory) -> None:
         self._clients: dict[str, TrustClient | None] = {}
-        raise NotImplementedError
+        #raise NotImplementedError
 
     def get_client(self, role: str) -> TrustClient | None:
         """Return the TrustClient for a role, or None if not configured."""
