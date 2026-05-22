@@ -1,8 +1,12 @@
 """TrustConfig — builds and holds TrustClient instances parsed from TRUST_SERVERS."""
 
 import os
+from collections.abc import Callable
+
+import httpx
 
 from ai_contained.trust.client.trust_client import TrustClient
+from ai_contained.trust.client.trust_connection import TrustConnection
 
 
 class DuplicateSourceError(ValueError):
@@ -45,7 +49,7 @@ class TrustConfig:
             result[role] = url
         return result
 
-    def __init__(self, trust_servers: str) -> None:
+    def __init__(self, trust_servers: str, factory: Callable[[httpx.URL], httpx.Client]) -> None:
         self._clients: dict[str, TrustClient | None] = {}
         raise NotImplementedError
 
@@ -61,9 +65,16 @@ class TrustConfig:
 _instance: TrustConfig | None = None
 
 
-def get_trust_config() -> TrustConfig:
-    """Return the process-wide TrustConfig singleton."""
+def get_trust_config() -> TrustConfig | None:
+    """Return the process-wide TrustConfig singleton, or None if not yet initialized."""
+    return _instance
+
+
+def init_trust_config(raw: str, factory: Callable[[httpx.URL], httpx.Client] = lambda url: httpx.Client(base_url=str(url))) -> TrustConfig | None:
+    """Initialize (or reinitialize) the process-wide TrustConfig singleton."""
     global _instance
-    if _instance is None:
-        _instance = TrustConfig(os.environ.get("TRUST_SERVERS", ""))
+    if not raw:
+        _instance = None
+        return None
+    _instance = TrustConfig(raw, factory)
     return _instance

@@ -1,6 +1,10 @@
+import httpx
+import pytest
 from assertpy import assert_that
+from starlette.testclient import TestClient
 
 from ai_contained.trust import client as trust_client
+from ai_contained.trust.client.trust_connection import TrustConnection
 
 
 def describe_TrustConfig() -> None:
@@ -45,3 +49,27 @@ def describe_TrustConfig() -> None:
             assert_that(trust_client.TrustConfig._parse).raises(trust_client.DuplicateSourceError).when_called_with(
                 "http://foo.com:8080,http://foo.com:8081"
             )
+
+    def describe_get_client() -> None:
+        def it_is_uninitialized_by_default() -> None:
+            assert_that(trust_client.get_trust_config()).is_none()
+
+        def it_allows_known_role_and_denies_unknown(http: TestClient) -> None:
+            trust_client.init_trust_config("aws=http://127.0.0.1:8080", lambda url: http)
+            assert_that(trust_client.get_trust_config().get_client("github")).is_none()
+            assert_that(trust_client.get_trust_config().get_client("aws")).is_instance_of(trust_client.TrustClient)
+
+        def it_allows_any_role_via_wildcard(http: TestClient) -> None:
+            trust_client.init_trust_config("http://127.0.0.1:8080", lambda url: http)
+            assert_that(trust_client.get_trust_config().get_client("github")).is_instance_of(trust_client.TrustClient)
+            assert_that(trust_client.get_trust_config().get_client("aws")).is_instance_of(trust_client.TrustClient)
+
+        def it_denies_role_even_with_wildcard(http: TestClient) -> None:
+            trust_client.init_trust_config("http://127.0.0.1:8080,aws=", lambda url: http)
+            assert_that(trust_client.get_trust_config().get_client("github")).is_instance_of(trust_client.TrustClient)
+            assert_that(trust_client.get_trust_config().get_client("aws")).is_none()
+
+        def it_shares_connection_across_roles_on_same_host(http: TestClient) -> None:
+            trust_client.init_trust_config("aws=http://127.0.0.1:8080,shell=http://127.0.0.1:8080", lambda url: http)
+            config = trust_client.get_trust_config()
+            assert_that(config.get_client("aws")._connection).is_same_as(config.get_client("shell")._connection)

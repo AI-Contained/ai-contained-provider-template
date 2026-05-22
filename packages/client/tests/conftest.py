@@ -2,6 +2,7 @@ import pytest
 from fastmcp import FastMCP
 from starlette.testclient import TestClient
 
+from ai_contained.trust import client as trust_client
 from ai_contained.trust import server as trust_server
 from ai_contained.trust.server.trust_store import get_trust_store
 
@@ -10,6 +11,7 @@ from ai_contained.trust.server.trust_store import get_trust_store
 def reset_trust_store() -> None:
     get_trust_store().reset()
     trust_server.get_trust_config().reset("127.0.0.1")  # allow test client IP with wildcard roles
+    trust_client.init_trust_config("", lambda url: None)  # reset client singleton to empty
 
 
 @pytest.fixture
