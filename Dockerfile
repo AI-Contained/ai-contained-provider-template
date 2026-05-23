@@ -1,3 +1,3 @@
 FROM scratch
 
-COPY . /opt/ai-contained-provider-template
+COPY packages/daemon /opt/ai-contained-provider-trust-server-daemon
