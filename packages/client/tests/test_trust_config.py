@@ -75,7 +75,9 @@ def describe_TrustConfig() -> None:
             assert_that(trust_client.get_trust_config().get_client("aws")).is_none()
 
         async def it_shares_connection_across_roles_on_same_host(http: httpx.AsyncClient) -> None:
-            await trust_client.init_trust_config("aws=http://127.0.0.1:8080,shell=http://127.0.0.1:8080", lambda url: http)
+            await trust_client.init_trust_config(
+                "aws=http://127.0.0.1:8080,shell=http://127.0.0.1:8080", lambda url: http
+            )
             config = trust_client.get_trust_config()
             assert_that(config.get_client("aws")._connection).is_same_as(config.get_client("shell")._connection)
 

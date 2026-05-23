@@ -7,11 +7,11 @@ from collections.abc import Callable
 import httpx
 from fastmcp.utilities.logging import get_logger
 
-_sleep = asyncio.sleep  # exposed for monkeypatching in tests
-_log: logging.Logger = get_logger("trust.client")
-
 from ai_contained.trust.client.trust_client import TrustClient
 from ai_contained.trust.client.trust_connection import TrustConnection
+
+_sleep = asyncio.sleep  # exposed for monkeypatching in tests
+_log: logging.Logger = get_logger("trust.client")
 
 HttpClientFactory = Callable[[httpx.URL], httpx.AsyncClient]
 
@@ -21,7 +21,10 @@ def _default_http_client_factory(url: httpx.URL) -> httpx.AsyncClient:
 
 
 class DuplicateSourceError(ValueError):
+    """Raised when the same role appears more than once in TRUST_SERVERS."""
+
     def __init__(self, role: str) -> None:
+        """Build an error message naming the duplicate role or wildcard."""
         display = "wildcard" if role == "*" else f"role {role!r}"
         super().__init__(f"duplicate {display} in TRUST_SERVERS")
 
@@ -45,7 +48,8 @@ async def _register_clients(
 
         if key not in by_url:
             # TODO:  Create an async request to allow the key-exchange to happen in parallel (nice-to-have)
-            #        WARNING:  Watch out for issues where the same host is contacted twice (it will be rejected by the server)
+            #        WARNING:  Watch out for issues where the same host is contacted twice
+            #                  (it will be rejected by the server)
             _log.info("connecting to %s", key)
             conn = TrustConnection(factory(parsed_url))
             for attempt in range(1, max_retries + 1):
@@ -102,6 +106,7 @@ class TrustConfig:
         return result
 
     def __init__(self, clients: dict[str, TrustClient | None]) -> None:
+        """Store a pre-built role→TrustClient mapping (constructed by init_trust_config)."""
         self._clients = clients
 
     def get_client(self, role: str) -> TrustClient | None:

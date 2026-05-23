@@ -19,6 +19,7 @@ from ai_contained.trust.server.trust_store import RegisteredClient, get_trust_st
 
 def _reverse_dns(ip: str) -> list[str]:
     """Return all names for an IP: primary hostname, aliases, and the IP itself.
+
     Always including the IP allows TRUST_CLIENTS to use hostnames or IP addresses interchangeably.
     """
     try:
@@ -33,8 +34,10 @@ def register(mcp: FastMCP) -> None:
     store = get_trust_store()
 
     @mcp.custom_route("/trust/register", methods=["POST"])
-    async def trust_register(request: Request) -> JSONResponse:
+    async def trust_register(request: Request) -> Response:
         # IP check first — if already registered, don't process a potentially poisoned payload
+        if request.client is None:
+            return JSONResponse({"code": "FORBIDDEN"}, status_code=401)
         client_ip = ip_address(request.client.host)
         if client_ip in store._clients:
             return JSONResponse({"code": "ALREADY_REGISTERED"}, status_code=401)
@@ -46,7 +49,8 @@ def register(mcp: FastMCP) -> None:
         if len(matches) == 0:
             return JSONResponse({"code": "FORBIDDEN"}, status_code=401)
         elif len(matches) > 1:
-            return JSONResponse({"code": "AMBIGUOUS_CONFIG", "detail": f"{client_ip} matches multiple TRUST_CLIENTS entries: {', '.join(matches)}"}, status_code=500)
+            detail = f"{client_ip} matches multiple TRUST_CLIENTS entries: {', '.join(matches)}"
+            return JSONResponse({"code": "AMBIGUOUS_CONFIG", "detail": detail}, status_code=500)
         permitted_name = matches[0]
 
         if "application/json" not in request.headers.get("content-type", ""):
@@ -61,7 +65,10 @@ def register(mcp: FastMCP) -> None:
         for field in ("signing_public_key", "encryption_public_key"):
             value = body.get(field)
             if not isinstance(value, str):
-                return JSONResponse({"code": "INVALID_KEY", "detail": f"{field}: missing or not a string"}, status_code=400)
+                return JSONResponse(
+                    {"code": "INVALID_KEY", "detail": f"{field}: missing or not a string"},
+                    status_code=400,
+                )
             try:
                 bytes.fromhex(value)
             except ValueError as e:

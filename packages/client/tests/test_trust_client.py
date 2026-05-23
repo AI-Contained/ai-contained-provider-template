@@ -107,7 +107,8 @@ def describe_TrustClient() -> None:
 
                 monkeypatch.setattr(SecretEndpointHandler, "handle", _handler)
                 assert_that(await trust_client.post({})).is_equal_to(expected)
-                assert_that(captured["headers"].get("authorization")).starts_with('Signature keyId="Ed25519",signature="')
+                result = captured["headers"].get("authorization")
+                assert_that(result).starts_with('Signature keyId="Ed25519",signature="')
 
     def describe_role_enforcement() -> None:
         async def it_can_register_at_custom_path(mcp: FastMCP) -> None:

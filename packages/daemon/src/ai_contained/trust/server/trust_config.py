@@ -56,6 +56,7 @@ class TrustConfig:
         return result
 
     def __init__(self, trust_clients: str) -> None:
+        """Parse TRUST_CLIENTS and build the hostname→RoleSet allowlist."""
         self._permitted: dict[str, RoleSet] = self._parse(trust_clients)
 
     def reset(self, trust_clients: str = "") -> None:
@@ -63,9 +64,11 @@ class TrustConfig:
         self._permitted = self._parse(trust_clients)
 
     def is_hostname_permitted(self, hostname: str) -> bool:
+        """Return True if the hostname appears in the allowlist."""
         return hostname in self._permitted
 
     def is_role_permitted(self, hostname: str, role: str) -> bool:
+        """Return True if the hostname is permitted and its RoleSet allows the role."""
         role_set = self._permitted.get(hostname, None)
         return role_set is not None and role_set.permits(role)
 

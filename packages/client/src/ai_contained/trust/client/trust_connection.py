@@ -1,6 +1,7 @@
 """TrustConnection — low-level key exchange and signed HTTP with a trust server."""
 
 import json
+from typing import Any
 
 import httpx
 import nacl.public
@@ -18,6 +19,7 @@ class TrustConnection:
     """
 
     def __init__(self, http: httpx.AsyncClient) -> None:
+        """Wrap an async HTTP client with fresh ephemeral keypairs."""
         self._http = http
         self._signing_key = nacl.signing.SigningKey.generate()
         self._private_key = nacl.public.PrivateKey.generate()
@@ -32,6 +34,7 @@ class TrustConnection:
         Raises:
             httpx.HTTPStatusError: unexpected response — indicates misconfiguration.
                                    Includes server URL and response body for debugging.
+
         """
         response = await self._http.post(
             "/trust/register",
@@ -47,7 +50,8 @@ class TrustConnection:
         response.raise_for_status()
         raise RuntimeError("unreachable")
 
-    async def post_raw(self, path: str, payload: dict) -> bytes:
+    async def post_raw(self, path: str, payload: dict[str, Any]) -> bytes:
+        """Sign and POST payload, decrypt and return the response body."""
         body = json.dumps(payload).encode()
         # 1. Sign request body with self._signing_key
         signature = self._signing_key.sign(body).signature
@@ -84,4 +88,3 @@ class TrustConnection:
 
         # 5. Return plaintext bytes
         return content
-

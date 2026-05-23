@@ -20,12 +20,16 @@ def describe_POST_trust_register() -> None:
     async def it_rejects_missing_signing_key(http: httpx.AsyncClient) -> None:
         response = await http.post("/trust/register", json={"encryption_public_key": "ab" * 32})
         assert_that(response.status_code).is_equal_to(400)
-        assert_that(response.json()).is_equal_to({"code": "INVALID_KEY", "detail": "signing_public_key: missing or not a string"})
+        assert_that(response.json()).is_equal_to(
+            {"code": "INVALID_KEY", "detail": "signing_public_key: missing or not a string"}
+        )
 
     async def it_rejects_missing_encryption_key(http: httpx.AsyncClient) -> None:
         response = await http.post("/trust/register", json={"signing_public_key": "ab" * 32})
         assert_that(response.status_code).is_equal_to(400)
-        assert_that(response.json()).is_equal_to({"code": "INVALID_KEY", "detail": "encryption_public_key: missing or not a string"})
+        assert_that(response.json()).is_equal_to(
+            {"code": "INVALID_KEY", "detail": "encryption_public_key: missing or not a string"}
+        )
 
     async def it_rejects_malformed_key_format(http: httpx.AsyncClient) -> None:
         response = await http.post(

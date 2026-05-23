@@ -36,6 +36,7 @@ class TrustStore:
     """
 
     def __init__(self) -> None:
+        """Initialize an empty client registry."""
         self._clients: dict[IPAddress, RegisteredClient] = {}
 
     def reset(self) -> None:
