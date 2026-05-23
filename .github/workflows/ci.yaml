@@ -66,7 +66,7 @@ jobs:
           images: ghcr.io/${{ github.repository }}
           tags: |
             type=ref,event=branch,prefix=branch-
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           platforms: linux/amd64,linux/arm64
           push: ${{ github.ref != 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
@@ -110,7 +110,7 @@ jobs:
             type=semver,pattern={{major}},value=${{ steps.semantic.outputs.new_release_version }}
             type=raw,value=latest
       # Shares the GHA cache populated by the build job, so this is effectively free
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         if: steps.semantic.outputs.new_release_published == 'true'
         with:
           platforms: linux/amd64,linux/arm64
