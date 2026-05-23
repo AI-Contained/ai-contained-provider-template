@@ -1,11 +1,14 @@
 """TrustConnection — low-level key exchange and signed HTTP with a trust server."""
 
 import json
+import time
 from typing import Any
 
 import httpx
 import nacl.public
 import nacl.signing
+
+_now = time.time
 
 
 class TrustConnection:
