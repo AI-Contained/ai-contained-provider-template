@@ -9,6 +9,8 @@ description = "TrustServer base class for ai-contained secret brokers"
 requires-python = ">=3.12"
 dependencies = [
     "pynacl>=1.5",
+    "fastmcp>=3.2.4,<3.3",
+    "starlette>=1.0.1",
 ]
 
 [project.optional-dependencies]
