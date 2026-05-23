@@ -1,6 +1,8 @@
 # ai-contained-provider-trust-server
 
-Mutual authentication and encrypted secret delivery between AI-contained services. A **daemon** process brokers secrets; **client** processes prove their identity before receiving them.
+The secure backbone for credential delivery in AI-contained. Each **role** represents a type of secret endpoint — for example, `aws` delivers AWS credentials, `github` delivers GitHub tokens. The interface between client and server varies per role, but the underlying authentication and encryption is provided by this library for all of them.
+
+A **server** process hosts the secret endpoints; **client** processes prove their identity before receiving credentials. Neither side can be impersonated, and responses are encrypted so only the intended recipient can read them.
 
 ---
 
