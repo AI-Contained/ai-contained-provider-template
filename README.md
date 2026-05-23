@@ -54,7 +54,7 @@ Client process                          Daemon process
 | `shell=provider-hostname` | Allow `provider-hostname` to access the `shell` role only |
 | `shell=provider-hostname,aws=provider-hostname` | Allow `provider-hostname` to access `shell` and `aws` |
 | `shell=provider-a,aws=provider-b` | Different roles from different hosts |
-| `!aws=provider-hostname` | Explicitly deny `provider-hostname` from the `aws` role |
+| `provider-hostname,aws=!provider-hostname` | Allow all roles except `aws` |
 
 The hostname is matched against the client IP's reverse-DNS result (hostname, aliases, and the raw IP are all checked).
 
