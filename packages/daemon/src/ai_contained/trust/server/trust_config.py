@@ -9,7 +9,7 @@ class RoleSet:
     """Mutable set of allowed and denied roles for a client."""
 
     allowed: set[str]  # explicit roles, or {"*"} for wildcard
-    denied: set[str]   # explicitly blocked roles
+    denied: set[str]  # explicitly blocked roles
 
     def permits(self, role: str) -> bool:
         """Return True if role is allowed and not denied."""

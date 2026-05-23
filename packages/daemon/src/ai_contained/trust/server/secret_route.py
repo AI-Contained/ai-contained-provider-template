@@ -66,8 +66,7 @@ def secret_route(
 
             # Strip content-length so Starlette recomputes it for the new body
             headers = {
-                k: v for k, v in response.headers.items()
-                if k.lower() not in ("x-trust-secret", "content-length")
+                k: v for k, v in response.headers.items() if k.lower() not in ("x-trust-secret", "content-length")
             }
 
             if should_encrypt:

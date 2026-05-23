@@ -23,8 +23,8 @@ class RegisteredClient:
     re-register from the same IP with different keys.
     """
 
-    roles: RoleSet              # permitted roles for this client
-    signing_public_key: str     # Ed25519 verify key — used to authenticate each request
+    roles: RoleSet  # permitted roles for this client
+    signing_public_key: str  # Ed25519 verify key — used to authenticate each request
     encryption_public_key: str  # Curve25519 public key — used to encrypt responses
 
 
