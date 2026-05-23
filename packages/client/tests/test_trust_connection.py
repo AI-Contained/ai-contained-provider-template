@@ -1,7 +1,5 @@
 import time
 
-import time
-
 import httpx
 import pytest
 from assertpy import assert_that
@@ -106,18 +104,14 @@ def describe_TrustConnection() -> None:
             await conn.register()
             return conn
 
-        async def it_rejects_an_expired_timestamp(
-            connection: TrustConnection, monkeypatch: pytest.MonkeyPatch
-        ) -> None:
+        async def it_rejects_an_expired_timestamp(connection: TrustConnection, monkeypatch: pytest.MonkeyPatch) -> None:
             monkeypatch.setattr(trust_connection, "_now", lambda: time.time() - 60)
             with pytest.raises(httpx.HTTPStatusError) as exc_info:
                 await connection.post_raw("/test/secret", {})
             assert_that(exc_info.value.response.status_code).is_equal_to(401)
             assert_that(exc_info.value.response.json()).is_equal_to({"code": "REQUEST_EXPIRED"})
 
-        async def it_rejects_a_future_timestamp(
-            connection: TrustConnection, monkeypatch: pytest.MonkeyPatch
-        ) -> None:
+        async def it_rejects_a_future_timestamp(connection: TrustConnection, monkeypatch: pytest.MonkeyPatch) -> None:
             monkeypatch.setattr(trust_connection, "_now", lambda: time.time() + 60)
             with pytest.raises(httpx.HTTPStatusError) as exc_info:
                 await connection.post_raw("/test/secret", {})
