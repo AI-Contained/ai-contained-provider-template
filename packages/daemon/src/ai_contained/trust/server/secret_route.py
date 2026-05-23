@@ -25,7 +25,7 @@ def secret_route(
     mcp: FastMCP,
     role: str,
     path: str | None = None,
-    max_age_seconds: int = 30,
+    clock_skew_seconds: int = 30,
 ) -> Callable[[Handler], Handler]:
     """Register a custom MCP route that enforces trust authentication and encrypts responses."""
     resolved_path = path if path is not None else f"/{role}/secret"
@@ -58,7 +58,7 @@ def secret_route(
                 return JSONResponse({"code": "INVALID_AUTHORIZATION"}, status_code=401)
 
             # 3a. Reject requests outside the allowed time window
-            if abs(_now() - created_ts) > max_age_seconds:
+            if abs(_now() - created_ts) > clock_skew_seconds:
                 return JSONResponse({"code": "REQUEST_EXPIRED"}, status_code=401)
 
             # 4. Verify Ed25519 signature over created_ts + "\n" + body — 401 if invalid
