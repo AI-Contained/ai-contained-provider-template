@@ -80,7 +80,7 @@ def describe_write_command() -> None:
     async def client(elicitor: Elicitor) -> AsyncGenerator[Client[FastMCPTransport], None]:
         """Production client — real blocklist enforced."""
         server = FastMCP("test")
-        register_write_command(server)
+        await register_write_command(server)
         async with Client(transport=server, elicitation_handler=elicitor) as c:
             yield c
 
@@ -88,7 +88,7 @@ def describe_write_command() -> None:
     async def write_command(elicitor: Elicitor) -> AsyncGenerator[ExecuteCommand, None]:
         """Permissive client — no blocklist. Exposes .client for raw call_tool access."""
         server = FastMCP("test")
-        register_write_command(server, blocklist=frozenset())
+        await register_write_command(server, blocklist=frozenset())
         async with Client(transport=server, elicitation_handler=elicitor) as c:
             yield ExecuteCommand(c, elicitor)
 
@@ -261,7 +261,7 @@ def describe_write_command() -> None:
             monkeypatch.setenv("COLOR", "ascii")
             expected = f"I will run the following command: ls /tmp (using tool: \033[31m{_TOOL_TAG}\033[0m)"
             server = FastMCP("test")
-            register_write_command(server, blocklist=frozenset())
+            await register_write_command(server, blocklist=frozenset())
             async with Client(transport=server, elicitation_handler=elicitor) as c:
                 elicitor.decline(expect_message=expected)
                 await c.call_tool("write_command", {"command": "ls", "arguments": ["/tmp"]}, raise_on_error=False)

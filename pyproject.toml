@@ -4,11 +4,11 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ai-contained-provider-shell"
-version = "0.1.0"
+version = "0.4.0"
 description = "Give your AI-Contained Agent controlled access to your command shell."
 requires-python = ">=3.12"
 dependencies = [
-    "ai-contained-core-mcp @ https://github.com/AI-Contained/ai-contained-base/archive/refs/tags/v0.2.0.zip#subdirectory=packages/core-mcp",
+    "ai-contained-core-mcp @ https://github.com/AI-Contained/ai-contained-base/archive/refs/tags/v0.3.1.zip#subdirectory=packages/core-mcp",
 ]
 
 [project.optional-dependencies]

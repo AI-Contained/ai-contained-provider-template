@@ -6,7 +6,7 @@ from ai_contained.provider.shell.read_bash import register as _register_read_bas
 from ai_contained.provider.shell.write_command import register as _register_write_command
 
 
-def register(mcp: FastMCP) -> None:
+async def register(mcp: FastMCP) -> None:
     """Register all shell provider tools with the MCP server."""
-    _register_read_bash(mcp)
-    _register_write_command(mcp)
+    await _register_read_bash(mcp)
+    await _register_write_command(mcp)

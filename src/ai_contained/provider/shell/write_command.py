@@ -1,9 +1,9 @@
 """write_command tool — run a single program directly, without a shell."""
 
+import asyncio
 import json
 import os
 import shutil
-import subprocess
 from pathlib import Path
 
 from fastmcp import Context, FastMCP
@@ -62,7 +62,7 @@ def _colorize(msg: str) -> str:
     return f"{red}{msg}{reset}"
 
 
-def register(mcp: FastMCP, *, blocklist: frozenset[str] = _BLOCKED) -> None:
+async def register(mcp: FastMCP, *, blocklist: frozenset[str] = _BLOCKED) -> None:
     """Register the write_command tool with the MCP server."""
 
     async def write_command(
@@ -102,18 +102,20 @@ def register(mcp: FastMCP, *, blocklist: frozenset[str] = _BLOCKED) -> None:
         if result.action != "accept":
             raise ToolError("Tool use was cancelled by the user")
 
-        proc = subprocess.run(
-            [resolved] + arguments,
-            capture_output=True,
-            text=True,
+        proc = await asyncio.create_subprocess_exec(
+            resolved,
+            *arguments,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
             cwd=working_dir or None,
             env=merged_env,
         )
+        stdout, stderr = await proc.communicate()
         return json.dumps(
             {
                 "exit_status": str(proc.returncode),
-                "stderr": proc.stderr,
-                "stdout": proc.stdout,
+                "stderr": stderr.decode(),
+                "stdout": stdout.decode(),
             }
         )
 

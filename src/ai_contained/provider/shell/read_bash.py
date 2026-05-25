@@ -1,9 +1,9 @@
 """read_bash tool — run shell commands."""
 
+import asyncio
 import json
 import os
 import shutil
-import subprocess
 
 from fastmcp import Context, FastMCP
 from fastmcp.exceptions import ToolError
@@ -11,7 +11,7 @@ from fastmcp.exceptions import ToolError
 _TOOL_TAG = "shell::read"
 
 
-def register(mcp: FastMCP) -> None:
+async def register(mcp: FastMCP) -> None:
     """Register the read_bash tool with the MCP server."""
 
     @mcp.tool(name="read_bash")
@@ -82,16 +82,22 @@ def register(mcp: FastMCP) -> None:
             os.environ.get("DOWNGRADE_EXEC") or shutil.which("downgrade_exec") or "/usr/local/bin/downgrade_exec"
         )
         downgrade_args = os.environ.get("DOWNGRADE_ARGS", "--check=writable").split()
-        proc = subprocess.run(
-            [downgrade_exec, *downgrade_args, "--", "/bin/sh", "-c", command],
-            capture_output=True,
-            text=True,
+        proc = await asyncio.create_subprocess_exec(
+            downgrade_exec,
+            *downgrade_args,
+            "--",
+            "/bin/sh",
+            "-c",
+            command,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
             cwd=working_dir or None,
         )
+        stdout, stderr = await proc.communicate()
         return json.dumps(
             {
                 "exit_status": str(proc.returncode),
-                "stderr": proc.stderr,
-                "stdout": proc.stdout,
+                "stderr": stderr.decode(),
+                "stdout": stdout.decode(),
             }
         )
